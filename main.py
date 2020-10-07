@@ -11,6 +11,9 @@ FRAME_DELTA = 10
 VIDEO_PATH = "test_vid.avi"
 VIDEO_PREDICT_DIR = "video/"
 
+if not os.path.exists(VIDEO_PREDICT_DIR):
+    os.mkdir(VIDEO_PREDICT_DIR)
+
 logging.set_verbosity(logging.ERROR)
 
 
