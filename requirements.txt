@@ -1,0 +1,18 @@
+# Image libraries
+numpy
+scipy
+Pillow
+cython
+matplotlib
+scikit-image
+opencv-python
+h5py
+imgaug
+imageio
+imageio-ffmpeg
+
+# ML libraries
+tensorflow==1.15.0
+keras==2.1.4
+pycocotools
+IPython[ALL]

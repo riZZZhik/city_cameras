@@ -5,14 +5,13 @@ from .Mask_RCNN import visualize
 
 # Create configuration
 class InferenceConfig(coco.CocoConfig):
-    BATCH_SIZE = 1
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
 
 
 # Create main class
 class CameraSegmentator:
-    def __init__(self, coco_weights_path="weights/mask_rcnn_coco.h5"):
+    def __init__(self, coco_weights_path="weights/mask_rcnn_coco.h5", config=InferenceConfig()):
         """ Initialize main parameters.
         Args:
             coco_weights_path (str): Path to coco weights file (Download from internet).
@@ -38,7 +37,7 @@ class CameraSegmentator:
                             'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                             'teddy bear', 'hair drier', 'toothbrush']
 
-        self.config = InferenceConfig()
+        self.config = config
 
     def _init_predict(self):
         self.model_predict = model.MaskRCNN(mode="inference", model_dir=self.model_dir, config=self.config)
@@ -52,10 +51,26 @@ class CameraSegmentator:
 
         """
         self._init_predict()
-        predictions = self.model_predict.detect(images, verbose=1)
-        return predictions
+        length = len(images)
+        predictions = []
 
-    def predict_video(self, video, frame_delta):
+        index = 0
+        while index < length:
+            print(index, self.config.BATCH_SIZE, length)
+            predictions.append(self.model_predict.detect(images[index:index + self.config.BATCH_SIZE]))
+            index += self.config.BATCH_SIZE
+
+        print(len(images))
+        print(index)
+        delta = len(images) - index
+        if delta:
+            images += images[:delta]
+            predictions.append(self.model_predict.detect(images[index:index + self.config.BATCH_SIZE]))
+            return predictions[:-delta]
+        else:
+            return predictions
+
+    def predict_video(self, video, frame_delta):  # TODO
         self._init_predict()
 
     def visualize(self, images, preds):
@@ -69,6 +84,6 @@ class CameraSegmentator:
         """
         visualized = []
         for image, pred in zip(images, preds):
-            visualized.append(visualize.display_instances(image, pred['rois'], pred['masks'], pred['class_ids'],
-                                                          self.class_names, pred['scores']))
+            visualized.append(visualize.display_instances(image, pred[0]['rois'], pred[0]['masks'],
+                                                          pred[0]['class_ids'], self.class_names, pred[0]['scores']))
         return visualized

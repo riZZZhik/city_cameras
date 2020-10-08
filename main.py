@@ -1,11 +1,17 @@
 import os
 
-import cv2 as cv
+import numpy as np
+from PIL import Image
 from tensorflow.compat.v1 import logging
 
 from ml import CameraSegmentator
+from ml.Mask_RCNN.coco import CocoConfig
 
-IMAGES_DIR = "images"
+COCO_WEIGHTS_PATH = "weights/mask_rcnn_coco.h5"
+GPU_COUNT = 1
+IMAGES_PER_GPU = 1
+
+IMAGES_DIR = "test_vid_frames"
 
 FRAME_DELTA = 10
 VIDEO_PATH = "test_vid.avi"
@@ -17,40 +23,22 @@ if not os.path.exists(VIDEO_PREDICT_DIR):
 logging.set_verbosity(logging.ERROR)
 
 
+# Create configuration
+class InferenceConfig(CocoConfig):
+    GPU_COUNT = GPU_COUNT
+    IMAGES_PER_GPU = IMAGES_PER_GPU
+
+
 if __name__ == '__main__':
-    ml = CameraSegmentator("weights/mask_rcnn_coco.h5")
-    cap = cv.VideoCapture(VIDEO_PATH)
+    ml = CameraSegmentator(COCO_WEIGHTS_PATH)  # , InferenceConfig)  # FIXME
 
-    frame_id = 0
-    while cap.isOpened():
-        ret, frame = cap.read()
+    images_paths = sorted([path for path in os.listdir(IMAGES_DIR) if path.endswith(".png")])
+    images = [np.array(Image.open(os.path.join(IMAGES_DIR, path)).convert("RGB")) for path in images_paths]
 
-        if ret:
-            cv.imshow('Frame', frame)
-            cv.waitKey(1)
+    preds = ml.predict(images)
+    visualized = ml.visualize(images, preds)
+    for image, path in zip(visualized, images_paths):
+        image_PIL = Image.fromarray(image)
+        image_PIL.save(os.path.join(VIDEO_PREDICT_DIR, path))
 
-            if frame_id % FRAME_DELTA == 0:
-                prediction = ml.predict([frame])
-                visualized = ml.visualize([frame], prediction)
-                cv.imwrite(os.path.join(VIDEO_PREDICT_DIR, str(frame_id) + ".jpg"), visualized[0])
-
-            frame_id += 1
-        else:
-            break
-
-    cap.release()
-    cv.destroyAllWindows()
-
-# if __name__ == '__main__':
-#     ml = CameraSegmentator("weights/mask_rcnn_coco.h5")
-#
-#     images = []
-#     for file in os.listdir(IMAGES_DIR):
-#         if file.endswith(".png") or file.endswith(".jpg"):
-#             image = Image.open(os.path.join(IMAGES_DIR, file)).convert("RGB")
-#             images.append(np.array(image))
-#             break
-#
-#     r = ml.predict(images)[0]
-#     result_instance = display_instances(images[0], r['rois'], r['masks'], r['class_ids'],
-#                                               ml.class_names, r['scores'])
+    print(visualized)
