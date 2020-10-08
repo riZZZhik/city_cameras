@@ -1,0 +1,1 @@
+ffmpeg -i "test_vid.avi" -f image2 "test_vid_frames/frame-%04d.png"
