@@ -2,17 +2,19 @@
 numpy
 scipy
 Pillow
-cython
 matplotlib
 scikit-image
 opencv-python
-h5py
 imgaug
 imageio
 imageio-ffmpeg
 
+# Other libraries
+h5py
+cython
+
 # ML libraries
-tensorflow==1.15.0
-keras==2.1.4
+tensorflow==1.15.0  # Or 1.14.0
+keras==2.1.4  # If tensorflow=1.14.0 then keras=2.0.8
 pycocotools
 IPython[ALL]
