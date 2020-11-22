@@ -6,22 +6,37 @@ class Counter:  # TODO: Return number of each object type
     """Counter object to segment, outline and count objects on camera
 
     :param points: Two points to draw line, like ((x1, y1), (x2, y2))
-    :type points: list, tuple
+    :type points: list or tuple
     :param yolo_cfg: Path to "yolo3-spp.cfg"
     :type yolo_cfg: str
     :param yolo_weights: Path to "yolo3-spp.weights" from https://pjreddie.com/media/files/yolov3-spp.weights
     :type yolo_weights: str
     :param coco_names: Path to "coco_names"
     :type coco_names: str
+    :param classes: Coco classes to count
+    :type classes: list or tuple
     :param processed_frame: Should count func return processed image?
     :type processed_frame: bool
     """
 
-    def __init__(self, points, yolo_cfg, yolo_weights, coco_names, processed_frame=False):
+    def __init__(self, points, yolo_cfg, yolo_weights, coco_names, classes=None, processed_frame=False):
         assert np.array(points).shape == (2, 2), "Points var should be like ((x1, y1), (x2, y2))"
+
+        # Import coco classes
+        with open(coco_names) as f:
+            self.coco_classes = {i: x for i, x in enumerate(f.read().split('\n'))}
+
         # Class variables
-        self.points = points
         self.centroids = []
+        if classes is None:
+            classes = ("person", "car", "bus", "bicycle", "motorbike")
+        else:
+            assert type(classes) in (list, tuple)
+        self.classes = {i: x for i, x in self.coco_classes.items() if x in classes}
+        print(f'Used "{", ".join(self.classes.values())}" classes')
+        self.counted = {x: 0 for x in classes}
+
+        self.points = points
         self.processed_frame = processed_frame
 
         # Init YOLO
@@ -30,20 +45,16 @@ class Counter:  # TODO: Return number of each object type
         out_layers_indexes = self.net.getUnconnectedOutLayers()
         self.out_layers = [layer_names[index[0] - 1] for index in out_layers_indexes]
 
-        # Import coco classes
-        with open(coco_names) as f:
-            self.classes = f.read().split('\n')
-
     def count(self, frame: np.array):
         """Function to apply YOLOv3 NN to segment COCO objects
 
         :param frame: Image array
-        :type frame: np.array
+        :type frame: np.ndarray
 
         :return len(self.centroids): Number of counted objects
-        :rtype len(self.centroids): Int
+        :rtype len(self.centroids): int
         :return processed_frame: Processed frame with outlined objects, if init processed_frame is True
-        :rtype processed_frame: np.array
+        :rtype processed_frame: np.ndarray
         """
         height, width = frame.shape[:2]
         blob = cv.dnn.blobFromImage(frame, 1 / 255, (608, 608), (0, 0, 0), swapRB=True, crop=False)
@@ -58,7 +69,7 @@ class Counter:  # TODO: Return number of each object type
                 scores = obj[5:]
                 class_index = np.argmax(scores)
                 class_score = scores[class_index]
-                if class_score > 0 and class_index < 8:
+                if class_score > 0 and class_index in self.classes.keys():
                     cx = int(obj[0] * width)
                     cy = int(obj[1] * height)
                     obj_width = int(obj[2] * width)
@@ -77,40 +88,42 @@ class Counter:  # TODO: Return number of each object type
 
         sector = lambda x, y: (x - self.points[0][0]) * (self.points[1][1] - self.points[0][1]) - \
                               (y - self.points[0][1]) * (self.points[1][0] - self.points[0][0])
+
         for box_index in chosen_boxes:
-            b = box_index[0]
-            x, y, w, h = boxes[b]
+            index = box_index[0]
+            obj_class = self.classes[class_indexes[index]]
+            x, y, w, h = boxes[index]
             cx = x + w // 2
             cy = y + h // 2
             end = (x + w, y + h)
-            color = (0, 255, 0)
+            color = (255, 255, 255)
             start = (x - 10, y - 10)
 
             if self.processed_frame:
-                text = self.classes[class_indexes[b]]
                 processed_frame = cv.rectangle(processed_frame, start, end, color, 2)
-                processed_frame = cv.putText(processed_frame, text, start, cv.FONT_HERSHEY_SIMPLEX,
+                processed_frame = cv.putText(processed_frame, obj_class, start, cv.FONT_HERSHEY_SIMPLEX,
                                              1, color, 2, cv.LINE_AA)
 
             if abs(sector(cx, cy)) < 10000:
                 if len(self.centroids) == 0:
                     self.centroids.append((cx, cy))
-                i = 0
-                while i < len(self.centroids):
+                    self.counted[obj_class] += 1
+                for i in range(len(self.centroids)):
                     dist = cv.norm(self.centroids[i], (cx, cy), cv.NORM_L2)
-                    if dist < 20:
+                    if dist < 20:  # TODO: Distance coefficient
                         self.centroids[i] = (cx, cy)
                         break
                     i += 1
                     if i == len(self.centroids):
                         self.centroids.append((cx, cy))
-        self.centroids = sorted(self.centroids)
+                        self.counted[obj_class] += 1
 
         if self.processed_frame:
-            text_count = f'Counted: {len(self.centroids)}'
+            text_count = [f"{x}: {i}" for x, i in self.counted.items()]
+            text_count = 'Counted: ' + ', '.join(text_count)
+            processed_frame = cv.line(processed_frame, *self.points, (0, 255, 0), 2)
             processed_frame = cv.putText(processed_frame, text_count, (10, height - 10), cv.FONT_HERSHEY_SIMPLEX,
-                                         2, (0, 255, 255), 2, cv.LINE_AA)
-            processed_frame = cv.line(processed_frame, *self.points, (0, 0, 255), 2)
-            return len(self.centroids), processed_frame
+                                         1, (255, 255, 255), 2, cv.LINE_AA)
+            return self.counted, processed_frame
         else:
-            return len(self.centroids)
+            return self.counted, frame

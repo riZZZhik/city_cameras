@@ -5,7 +5,8 @@ from ml import Counter
 if __name__ == "__main__":
     # Download "yolov3-spp.weights" at https://pjreddie.com/media/files/yolov3-spp.weights
     points = ((10, 600), (1900, 460))
-    counter = Counter(points, "yolov3-spp.cfg", "yolov3-spp.weights", "coco.names", processed_frame=True)
+    counter = Counter(points, "yolov3-spp.cfg", "yolov3-spp.weights", "coco.names",
+                      classes=("person", "car", "bus", "bicycle", "motorbike"), processed_frame=True)
 
     cap = cv.VideoCapture('test_vid.avi')
     size = int(cap.get(3)), int(cap.get(4))
@@ -19,7 +20,8 @@ if __name__ == "__main__":
             break
 
         counted, processed_frame = counter.count(frame)
-        print(f"Counted: {counted}, on frame {i}")
+        text_count = [f"{x}: {i}" for x, i in counted.items()]
+        print(f"Counted: {', '.join(text_count)}, on frame {i}")
         output.write(processed_frame)
 
     cap.release()
