@@ -2,39 +2,51 @@ import cv2 as cv
 import numpy as np
 
 
-class Counter:
+class Counter:  # TODO: Return number of each object type
     """Counter object to segment, outline and count objects on camera
 
+    :param points: Two points to draw line, like ((x1, y1), (x2, y2))
+    :type points: list, tuple
     :param yolo_cfg: Path to "yolo3-spp.cfg"
     :type yolo_cfg: str
     :param yolo_weights: Path to "yolo3-spp.weights" from https://pjreddie.com/media/files/yolov3-spp.weights
     :type yolo_weights: str
     :param coco_names: Path to "coco_names"
     :type coco_names: str
+    :param processed_frame: Should count func return processed image?
+    :type processed_frame: bool
     """
 
-    def __init__(self, yolo_cfg, yolo_weights, coco_names):  # TODO: Add coco objects filter
+    def __init__(self, points, yolo_cfg, yolo_weights, coco_names, processed_frame=False):
+        assert np.array(points).shape == (2, 2), "Points var should be like ((x1, y1), (x2, y2))"
+        # Class variables
+        self.points = points
+        self.centroids = []
+        self.processed_frame = processed_frame
+
+        # Init YOLO
         self.net = cv.dnn.readNet(yolo_cfg, yolo_weights)
         layer_names = self.net.getLayerNames()
         out_layers_indexes = self.net.getUnconnectedOutLayers()
         self.out_layers = [layer_names[index[0] - 1] for index in out_layers_indexes]
 
+        # Import coco classes
         with open(coco_names) as f:
             self.classes = f.read().split('\n')
 
-    def apply_yolo(self, img: np.array):
+    def count(self, frame: np.array):
         """Function to apply YOLOv3 NN to segment COCO objects
 
-        :param img: Image array
-        :type img: np.array
+        :param frame: Image array
+        :type frame: np.array
 
-        :return boxes_result: List of objects corners
-        :rtype boxes_result: list
-        :return indexes_result: List of objects IDs in coco.names
-        :rtype indexes_result: list
+        :return len(self.centroids): Number of counted objects
+        :rtype len(self.centroids): Int
+        :return processed_frame: Processed frame with outlined objects, if init processed_frame is True
+        :rtype processed_frame: np.array
         """
-        height, width, _ = img.shape
-        blob = cv.dnn.blobFromImage(img, 1 / 255, (608, 608), (0, 0, 0), swapRB=True, crop=False)
+        height, width = frame.shape[:2]
+        blob = cv.dnn.blobFromImage(frame, 1 / 255, (608, 608), (0, 0, 0), swapRB=True, crop=False)
         self.net.setInput(blob)
         outs = self.net.forward(self.out_layers)
 
@@ -47,8 +59,7 @@ class Counter:
                 class_index = np.argmax(scores)
                 class_score = scores[class_index]
                 if class_score > 0 and class_index < 8:
-                    # if class_score>0:
-                    cx =  int(obj[0] * width)
+                    cx = int(obj[0] * width)
                     cy = int(obj[1] * height)
                     obj_width = int(obj[2] * width)
                     obj_height = int(obj[3] * height)
@@ -59,37 +70,47 @@ class Counter:
                     class_indexes.append(class_index)
                     class_scores.append(float(class_score))
 
-        boxes_result, indexes_result = [], []
         chosen_boxes = cv.dnn.NMSBoxes(boxes, class_scores, 0.2, 0.5)
-        for i in chosen_boxes:
-            boxes_result.append(boxes[i[0]])
-            indexes_result.append(class_indexes[i[0]])
 
-        return boxes_result, indexes_result
+        if self.processed_frame:
+            processed_frame = frame.copy()
 
-    def draw_object(self, img, boxes, indexes):
-        """Function to draw objects on frame
-
-        :param img: Image array
-        :type img: np.array
-        :param boxes: List of objects corners from self.apply_yolo
-        :type boxes: list
-        :param indexes: List of objects IDs in coco.names from self.apply_yolo
-        :type indexes: list
-
-        :return img: Image array with outlined objects
-        :rtype img: np.array
-        """
-
-        for box, index in zip(boxes, indexes):
-            x, y, w, h = box
-            start = (x, y)
+        sector = lambda x, y: (x - self.points[0][0]) * (self.points[1][1] - self.points[0][1]) - \
+                              (y - self.points[0][1]) * (self.points[1][0] - self.points[0][0])
+        for box_index in chosen_boxes:
+            b = box_index[0]
+            x, y, w, h = boxes[b]
+            cx = x + w // 2
+            cy = y + h // 2
             end = (x + w, y + h)
-            color = (255, 255, 255)
-            img = cv.rectangle(img, start, end, color, 2)
-
+            color = (0, 255, 0)
             start = (x - 10, y - 10)
-            text = self.classes[index]
-            img = cv.putText(img, text, start, cv.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv.LINE_AA)
 
-        return img
+            if self.processed_frame:
+                text = self.classes[class_indexes[b]]
+                processed_frame = cv.rectangle(processed_frame, start, end, color, 2)
+                processed_frame = cv.putText(processed_frame, text, start, cv.FONT_HERSHEY_SIMPLEX,
+                                             1, color, 2, cv.LINE_AA)
+
+            if abs(sector(cx, cy)) < 10000:
+                if len(self.centroids) == 0:
+                    self.centroids.append((cx, cy))
+                i = 0
+                while i < len(self.centroids):
+                    dist = cv.norm(self.centroids[i], (cx, cy), cv.NORM_L2)
+                    if dist < 20:
+                        self.centroids[i] = (cx, cy)
+                        break
+                    i += 1
+                    if i == len(self.centroids):
+                        self.centroids.append((cx, cy))
+        self.centroids = sorted(self.centroids)
+
+        if self.processed_frame:
+            text_count = f'Counted: {len(self.centroids)}'
+            processed_frame = cv.putText(processed_frame, text_count, (10, height - 10), cv.FONT_HERSHEY_SIMPLEX,
+                                         2, (0, 255, 255), 2, cv.LINE_AA)
+            processed_frame = cv.line(processed_frame, *self.points, (0, 0, 255), 2)
+            return len(self.centroids), processed_frame
+        else:
+            return len(self.centroids)
