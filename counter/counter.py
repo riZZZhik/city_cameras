@@ -141,4 +141,4 @@ class Counter:  # TODO: Return number of each object type
         data[camera_id] = self.counted
 
         with open(filename, 'w') as f:
-            json.dums(data, f)
+            json.dump(data, f)
