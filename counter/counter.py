@@ -1,5 +1,7 @@
 import cv2 as cv
+import json
 import numpy as np
+import os
 
 
 class Counter:  # TODO: Return number of each object type
@@ -127,3 +129,16 @@ class Counter:  # TODO: Return number of each object type
             return self.counted, processed_frame
         else:
             return self.counted, frame
+
+    def save_to_json(self, filename, camera_id):
+        data = {}
+        if os.path.exists(filename):
+            with open(filename) as f:
+                previous_data = json.load(f)
+                for key, value in previous_data.items():
+                    data[key] = value
+
+        data[camera_id] = self.counted
+
+        with open(filename, 'w') as f:
+            json.dums(data, f)

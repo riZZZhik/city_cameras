@@ -1,11 +1,11 @@
 import cv2 as cv
 
-from ml import Counter
+from counter import Counter
 
 if __name__ == "__main__":
     # Download "yolov3-spp.weights" at https://pjreddie.com/media/files/yolov3-spp.weights
     points = ((10, 600), (1900, 460))
-    counter = Counter(points, "yolov3-spp.cfg", "yolov3-spp.weights", "coco.names",
+    counter = Counter(points, "yolo_files/yolov3-spp.cfg", "yolo_files/yolov3-spp.weights", "yolo_files/coco.names",
                       classes=("person", "car", "bus", "bicycle", "motorbike"), processed_frame=True)
 
     cap = cv.VideoCapture('test_vid.avi')
@@ -24,5 +24,6 @@ if __name__ == "__main__":
         print(f"Counted: {', '.join(text_count)}, on frame {i}")
         output.write(processed_frame)
 
+    counter.save_to_json("output.json", "test_vid")
     cap.release()
     output.release()
