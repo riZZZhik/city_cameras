@@ -17,11 +17,11 @@ class Counter:  # TODO: Return number of each object type
     :type coco_names: str
     :param classes: Coco classes to count
     :type classes: list or tuple
-    :param processed_frame: Should count func return processed image?
-    :type processed_frame: bool
+    :param show_processed_frame: Should count func return processed image?
+    :type show_processed_frame: bool
     """
 
-    def __init__(self, points, yolo_cfg, yolo_weights, coco_names, classes=None, processed_frame=False):
+    def __init__(self, points, yolo_cfg, yolo_weights, coco_names, classes=None, show_processed_frame=False):
         assert np.array(points).shape == (2, 2), "Points var should be like ((x1, y1), (x2, y2))"
 
         # Import coco classes
@@ -38,8 +38,12 @@ class Counter:  # TODO: Return number of each object type
         print(f'Used "{", ".join(self.classes.values())}" classes')
         self.counted = {x: 0 for x in classes}
 
+        self.show_processed_frame = show_processed_frame
+
         self.points = points
-        self.processed_frame = processed_frame
+
+        self.mins = (min(points[0][0], points[1][0]), min(points[0][1], points[1][1]))
+        self.maxs = (max(points[0][0], points[1][0]), max(points[0][1], points[1][1]))
 
         # Init YOLO
         self.net = cv.dnn.readNet(yolo_cfg, yolo_weights)
@@ -85,7 +89,7 @@ class Counter:  # TODO: Return number of each object type
 
         chosen_boxes = cv.dnn.NMSBoxes(boxes, class_scores, 0.2, 0.5)
 
-        if self.processed_frame:
+        if self.show_processed_frame:
             processed_frame = frame.copy()
 
         sector = lambda x, y: (x - self.points[0][0]) * (self.points[1][1] - self.points[0][1]) - \
@@ -101,12 +105,13 @@ class Counter:  # TODO: Return number of each object type
             color = (255, 255, 255)
             start = (x - 10, y - 10)
 
-            if self.processed_frame:
+            if self.show_processed_frame:
                 processed_frame = cv.rectangle(processed_frame, start, end, color, 2)
                 processed_frame = cv.putText(processed_frame, obj_class, start, cv.FONT_HERSHEY_SIMPLEX,
                                              1, color, 2, cv.LINE_AA)
 
-            if abs(sector(cx, cy)) < 10000:
+            if abs(sector(cx, cy)) < 10000 and \
+                    (self.mins[0] - 5) < cx < (self.maxs[0] + 5) and (self.mins[1] - 5) < cy < (self.maxs[1] + 5):
                 if len(self.centroids) == 0:
                     self.centroids.append((cx, cy))
                     self.counted[obj_class] += 1
@@ -120,7 +125,7 @@ class Counter:  # TODO: Return number of each object type
                         self.centroids.append((cx, cy))
                         self.counted[obj_class] += 1
 
-        if self.processed_frame:
+        if self.show_processed_frame:
             text_count = [f"{x}: {i}" for x, i in self.counted.items()]
             text_count = 'Counted: ' + ', '.join(text_count)
             processed_frame = cv.line(processed_frame, *self.points, (0, 255, 0), 2)
@@ -128,7 +133,7 @@ class Counter:  # TODO: Return number of each object type
                                          1, (255, 255, 255), 2, cv.LINE_AA)
             return self.counted, processed_frame
         else:
-            return self.counted, frame
+            return self.counted
 
     def save_to_json(self, filename, camera_id):
         data = {}
