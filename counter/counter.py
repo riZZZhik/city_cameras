@@ -16,7 +16,7 @@ class Counter:  # TODO: Return number of each object type
     :param coco_names: Path to "coco_names"
     :type coco_names: str
     :param classes: Coco classes to count
-    :type classes: list or tuple
+    :type classes: list of str or tuple of str
     :param show_processed_frame: Should count func return processed image?
     :type show_processed_frame: bool
     """
@@ -31,7 +31,7 @@ class Counter:  # TODO: Return number of each object type
         # Class variables
         self.centroids = []
         if classes is None:
-            classes = ("person", "car", "bus", "bicycle", "motorbike")
+            classes = ("person", "car", "bus", "bicycle", "motorbike", "truck")
         else:
             assert type(classes) in (list, tuple)
         self.classes = {i: x for i, x in self.coco_classes.items() if x in classes}
