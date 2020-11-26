@@ -7,27 +7,23 @@ import os
 class Counter:  # TODO: Return number of each object type
     """Counter object to segment, outline and count objects on camera
 
-    :param points: Two points to draw line, like ((x1, y1), (x2, y2))
-    :type points: list or tuple
-    :param yolo_cfg: Path to "yolo3-spp.cfg"
-    :type yolo_cfg: str
-    :param yolo_weights: Path to "yolo3-spp.weights" from https://pjreddie.com/media/files/yolov3-spp.weights
-    :type yolo_weights: str
-    :param coco_names: Path to "coco_names"
-    :type coco_names: str
+    :param lines: Two points to draw line, like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))
+    :type lines: list or tuple
+    :param yolo_path: Path to yolo files: "coco.names", "yolo3-spp.cfg", "yolo3-spp.weights"
+    :type yolo_path: str
     :param classes: Coco classes to count
     :type classes: list of str or tuple of str
     :param show_processed_frame: Should count func return processed image?
     :type show_processed_frame: bool
     """
 
-    def __init__(self, points, yolo_cfg, yolo_weights, coco_names, classes=None, show_processed_frame=False):
+    def __init__(self, lines, yolo_path, classes=None, show_processed_frame=False):
         shape = np.array(lines).shape
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
             "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
 
         # Import coco classes
-        with open(coco_names) as f:
+        with open(os.path.join(yolo_path, "coco.names")) as f:
             self.coco_classes = {i: x for i, x in enumerate(f.read().split('\n'))}
 
         # Class variables
@@ -50,6 +46,8 @@ class Counter:  # TODO: Return number of each object type
         self.sector_size = 10000
 
         # Init YOLO
+        yolo_cfg, yolo_weights = os.path.join(yolo_path, "yolov3-spp.cfg"), \
+                                 os.path.join(yolo_path, "yolov3-spp.weights")
         self.net = cv.dnn.readNet(yolo_cfg, yolo_weights)
         layer_names = self.net.getLayerNames()
         out_layers_indexes = self.net.getUnconnectedOutLayers()
