@@ -22,7 +22,9 @@ class Counter:  # TODO: Return number of each object type
     """
 
     def __init__(self, points, yolo_cfg, yolo_weights, coco_names, classes=None, show_processed_frame=False):
-        assert np.array(points).shape == (2, 2), "Points var should be like ((x1, y1), (x2, y2))"
+        shape = np.array(lines).shape
+        assert shape[-2:] == (2, 2) and len(shape) == 3, \
+            "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
 
         # Import coco classes
         with open(coco_names) as f:
@@ -40,16 +42,27 @@ class Counter:  # TODO: Return number of each object type
 
         self.show_processed_frame = show_processed_frame
 
-        self.points = points
-
-        self.mins = (min(points[0][0], points[1][0]), min(points[0][1], points[1][1]))
-        self.maxs = (max(points[0][0], points[1][0]), max(points[0][1], points[1][1]))
+        self.lines = lines
+        self.mins, self.maxs = [], []
+        for line in lines:
+            self.mins.append((min(line[0][0], line[1][0]), min(line[0][1], line[1][1])))
+            self.maxs.append((max(line[0][0], line[1][0]), max(line[0][1], line[1][1])))
+        self.sector_size = 10000
 
         # Init YOLO
         self.net = cv.dnn.readNet(yolo_cfg, yolo_weights)
         layer_names = self.net.getLayerNames()
         out_layers_indexes = self.net.getUnconnectedOutLayers()
         self.out_layers = [layer_names[index[0] - 1] for index in out_layers_indexes]
+
+    def check_sector(self, x, y):
+        for line, mins, maxs in zip(self.lines, self.mins, self.maxs):
+            sector = (x - line[0][0]) * (line[1][1] - line[0][1]) - (y - line[0][1]) * (line[1][0] - line[0][0])
+            if abs(sector) < self.sector_size and \
+                    (mins[0] - 5) < x < (maxs[0] + 5) and (mins[1] - 5) < y < (maxs[1] + 5):
+                return True
+
+        return False
 
     def count(self, frame: np.array):
         """Function to apply YOLOv3 NN to segment COCO objects
@@ -92,9 +105,6 @@ class Counter:  # TODO: Return number of each object type
         if self.show_processed_frame:
             processed_frame = frame.copy()
 
-        sector = lambda x, y: (x - self.points[0][0]) * (self.points[1][1] - self.points[0][1]) - \
-                              (y - self.points[0][1]) * (self.points[1][0] - self.points[0][0])
-
         for box_index in chosen_boxes:
             index = box_index[0]
             obj_class = self.classes[class_indexes[index]]
@@ -110,8 +120,7 @@ class Counter:  # TODO: Return number of each object type
                 processed_frame = cv.putText(processed_frame, obj_class, start, cv.FONT_HERSHEY_SIMPLEX,
                                              1, color, 2, cv.LINE_AA)
 
-            if abs(sector(cx, cy)) < 10000 and \
-                    (self.mins[0] - 5) < cx < (self.maxs[0] + 5) and (self.mins[1] - 5) < cy < (self.maxs[1] + 5):
+            if self.check_sector(x, y):
                 if len(self.centroids) == 0:
                     self.centroids.append((cx, cy))
                     self.counted[obj_class] += 1
@@ -128,14 +137,15 @@ class Counter:  # TODO: Return number of each object type
         if self.show_processed_frame:
             text_count = [f"{x}: {i}" for x, i in self.counted.items()]
             text_count = 'Counted: ' + ', '.join(text_count)
-            processed_frame = cv.line(processed_frame, *self.points, (0, 255, 0), 2)
+            for line in self.lines:
+                processed_frame = cv.line(processed_frame, *line, (0, 255, 0), 2)
             processed_frame = cv.putText(processed_frame, text_count, (10, height - 10), cv.FONT_HERSHEY_SIMPLEX,
                                          1, (255, 255, 255), 2, cv.LINE_AA)
             return self.counted, processed_frame
         else:
             return self.counted
 
-    def save_to_json(self, filename, camera_id):
+    def save_to_json(self, filename, camera_id, sort=False):
         data = {}
         if os.path.exists(filename):
             with open(filename) as f:
@@ -144,6 +154,9 @@ class Counter:  # TODO: Return number of each object type
                     data[key] = value
 
         data[camera_id] = self.counted
+
+        if sort:
+            data = {k: data[k] for k in sorted(data)}
 
         with open(filename, 'w') as f:
             json.dump(data, f)
