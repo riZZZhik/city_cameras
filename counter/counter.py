@@ -22,8 +22,14 @@ class Counter:  # TODO: Return number of each object type
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
             "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
 
+        if not os.path.exists(yolo_path):
+            os.mkdir(yolo_path)
         # Import coco classes
-        with open(os.path.join(yolo_path, "coco.names")) as f:
+        coco_names = os.path.join(yolo_path, "coco.names")
+        if not os.path.exists(coco_names):
+            os.system(f"wget -P {yolo_path}/ https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names")
+
+        with open(coco_names) as f:
             self.coco_classes = {i: x for i, x in enumerate(f.read().split('\n'))}
 
         # Class variables
@@ -48,6 +54,13 @@ class Counter:  # TODO: Return number of each object type
         # Init YOLO
         yolo_cfg, yolo_weights = os.path.join(yolo_path, "yolov3-spp.cfg"), \
                                  os.path.join(yolo_path, "yolov3-spp.weights")
+
+        if not os.path.exists(yolo_cfg):
+            os.system(f"wget -P {yolo_path}/ "
+                      "https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3-spp.cfg")
+        if not os.path.exists(yolo_weights):
+            os.system(f"wget -P {yolo_path}/ https://pjreddie.com/media/files/yolov3-spp.weights")
+
         self.net = cv.dnn.readNet(yolo_cfg, yolo_weights)
         layer_names = self.net.getLayerNames()
         out_layers_indexes = self.net.getUnconnectedOutLayers()
