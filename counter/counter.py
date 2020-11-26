@@ -141,7 +141,7 @@ class Counter:  # TODO: Return number of each object type
                                          1, (255, 255, 255), 2, cv.LINE_AA)
             return self.counted, processed_frame
         else:
-            return self.counted
+            return self.counted, frame
 
     def save_to_json(self, filename, camera_id, sort=False):
         data = {}

@@ -9,7 +9,7 @@ VIDEO_FROM_FRAMES = False
 
 if __name__ == "__main__":
 
-    counter = Counter(POINTS, YOLO_FILES_PATH, classes=CLASSES, show_processed_frame=True)
+    counter = Counter(POINTS, YOLO_FILES_PATH, classes=CLASSES, show_processed_frame=OUTPUT_VIDEO_PATH)
 
     if VIDEO_FROM_FRAMES:
         paths = [os.path.join(VIDEO_PATH, x) for x in os.listdir(VIDEO_PATH)
@@ -26,7 +26,8 @@ if __name__ == "__main__":
     else:
         cap = cv.VideoCapture(VIDEO_PATH)
         size = int(cap.get(3)), int(cap.get(4))
-        output = cv.VideoWriter(OUTPUT_VIDEO_PATH, cv.VideoWriter_fourcc(*'MP4V'), 20, size)
+        if OUTPUT_VIDEO_PATH:
+            output = cv.VideoWriter(OUTPUT_VIDEO_PATH, cv.VideoWriter_fourcc(*'MP4V'), 20, size)
 
         i = 0
         while cap.isOpened():
@@ -38,9 +39,11 @@ if __name__ == "__main__":
             counted, processed_frame = counter.count(frame)
             text_count = [f"{x}: {i}" for x, i in counted.items()]
             print(f"Counted: {', '.join(text_count)}, on frame {i}")
-            output.write(processed_frame)
+            if OUTPUT_VIDEO_PATH:
+                output.write(processed_frame)
 
         cap.release()
         output.release()
 
-    counter.save_to_json(OUTPUT_JSON_PATH, "test_vid")
+    if OUTPUT_JSON_PATH:
+        counter.save_to_json(OUTPUT_JSON_PATH, "test_vid")
