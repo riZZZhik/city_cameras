@@ -17,7 +17,7 @@ class Counter:  # TODO: Return number of each object type
     :type show_processed_frame: bool
     """
 
-    def __init__(self, lines, yolo_path, classes=None, show_processed_frame=False):
+    def __init__(self, lines, yolo_path, dist_coef=1, classes=None, show_processed_frame=False):
         shape = np.array(lines).shape
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
             "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
@@ -27,20 +27,34 @@ class Counter:  # TODO: Return number of each object type
         # Import coco classes
         coco_names = os.path.join(yolo_path, "coco.names")
         if not os.path.exists(coco_names):
+            print(yolo_path + "/coco.names file not found, downloading from server")
             os.system(f"wget -P {yolo_path}/ https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names")
-
+            # TODO: Catch root permission required and try with sudo
         with open(coco_names) as f:
             self.coco_classes = {i: x for i, x in enumerate(f.read().split('\n'))}
 
         # Class variables
         self.centroids = []
+        default_classes = ("person", "car", "bus", "bicycle", "motorbike", "truck")
         if classes is None:
-            classes = ("person", "car", "bus", "bicycle", "motorbike", "truck")
+            classes = default_classes
         else:
-            assert type(classes) in (list, tuple)
+            assert type(classes) in (list, tuple), "classes type should be list or tuple"
+            assert all(c in default_classes for c in classes), f"Only {', '.join(default_classes)} classes supported"
+
         self.classes = {i: x for i, x in self.coco_classes.items() if x in classes}
         print(f'Used "{", ".join(self.classes.values())}" classes')
         self.counted = {x: 0 for x in classes}
+
+        self.objects_dist = {
+            "person": 1,
+            "bicycle": 1.5,
+            "car": 2,
+            "bus": 2,
+            "motorbike": 2,
+            "truck": 2
+        }
+        self.dist_coef = dist_coef
 
         self.show_processed_frame = show_processed_frame
 
@@ -49,27 +63,30 @@ class Counter:  # TODO: Return number of each object type
         for line in lines:
             self.mins.append((min(line[0][0], line[1][0]), min(line[0][1], line[1][1])))
             self.maxs.append((max(line[0][0], line[1][0]), max(line[0][1], line[1][1])))
-        self.sector_size = 10000
 
         # Init YOLO
         yolo_cfg, yolo_weights = os.path.join(yolo_path, "yolov3-spp.cfg"), \
                                  os.path.join(yolo_path, "yolov3-spp.weights")
 
         if not os.path.exists(yolo_cfg):
+            print(yolo_path + "/yolov3-spp.cfg file not found, downloading from server")
             os.system(f"wget -P {yolo_path}/ "
                       "https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3-spp.cfg")
+            # TODO: Catch root permission required and try with sudo
         if not os.path.exists(yolo_weights):
+            print(yolo_path + "/yolov3-spp.weights file not found, downloading from server")
             os.system(f"wget -P {yolo_path}/ https://pjreddie.com/media/files/yolov3-spp.weights")
+            # TODO: Catch root permission required and try with sudo
 
         self.net = cv.dnn.readNet(yolo_cfg, yolo_weights)
         layer_names = self.net.getLayerNames()
         out_layers_indexes = self.net.getUnconnectedOutLayers()
         self.out_layers = [layer_names[index[0] - 1] for index in out_layers_indexes]
 
-    def check_sector(self, x, y):
+    def check_sector(self, x, y, sector_size):
         for line, mins, maxs in zip(self.lines, self.mins, self.maxs):
             sector = (x - line[0][0]) * (line[1][1] - line[0][1]) - (y - line[0][1]) * (line[1][0] - line[0][0])
-            if abs(sector) < self.sector_size and \
+            if abs(sector) < sector_size and \
                     (mins[0] - 5) < x < (maxs[0] + 5) and (mins[1] - 5) < y < (maxs[1] + 5):
                 return True
 
@@ -87,6 +104,9 @@ class Counter:  # TODO: Return number of each object type
         :rtype processed_frame: np.ndarray
         """
         height, width = frame.shape[:2]
+        sector_size = width * 5.2
+        person_dist = width / 96
+
         blob = cv.dnn.blobFromImage(frame, 1 / 255, (608, 608), (0, 0, 0), swapRB=True, crop=False)
         self.net.setInput(blob)
         outs = self.net.forward(self.out_layers)
@@ -131,13 +151,13 @@ class Counter:  # TODO: Return number of each object type
                 processed_frame = cv.putText(processed_frame, obj_class, start, cv.FONT_HERSHEY_SIMPLEX,
                                              1, color, 2, cv.LINE_AA)
 
-            if self.check_sector(x, y):
+            if self.check_sector(x, y, sector_size):
                 if len(self.centroids) == 0:
                     self.centroids.append((cx, cy))
                     self.counted[obj_class] += 1
                 for i in range(len(self.centroids)):
                     dist = cv.norm(self.centroids[i], (cx, cy), cv.NORM_L2)
-                    if dist < 20:  # TODO: Distance coefficient
+                    if dist < person_dist * self.objects_dist[obj_class] * self.dist_coef:
                         self.centroids[i] = (cx, cy)
                         break
                     i += 1
