@@ -1,7 +1,10 @@
-import cv2 as cv
 import json
-import numpy as np
 import os
+
+import cv2 as cv
+import numpy as np
+
+from .utils import wget_file
 
 
 class Counter:  # TODO: Return number of each object type
@@ -18,6 +21,7 @@ class Counter:  # TODO: Return number of each object type
     """
 
     def __init__(self, lines, yolo_path, dist_coef=1, classes=None, show_processed_frame=False):
+        # TODO: User yolo_files paths
         shape = np.array(lines).shape
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
             "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
@@ -26,10 +30,7 @@ class Counter:  # TODO: Return number of each object type
             os.mkdir(yolo_path)
         # Import coco classes
         coco_names = os.path.join(yolo_path, "coco.names")
-        if not os.path.exists(coco_names):
-            print(yolo_path + "/coco.names file not found, downloading from server")
-            os.system(f"wget -P {yolo_path}/ https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names")
-            # TODO: Catch root permission required and try with sudo
+        wget_file(coco_names, "https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names")
         with open(coco_names) as f:
             self.coco_classes = {i: x for i, x in enumerate(f.read().split('\n'))}
 
@@ -68,15 +69,8 @@ class Counter:  # TODO: Return number of each object type
         yolo_cfg, yolo_weights = os.path.join(yolo_path, "yolov3-spp.cfg"), \
                                  os.path.join(yolo_path, "yolov3-spp.weights")
 
-        if not os.path.exists(yolo_cfg):
-            print(yolo_path + "/yolov3-spp.cfg file not found, downloading from server")
-            os.system(f"wget -P {yolo_path}/ "
-                      "https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3-spp.cfg")
-            # TODO: Catch root permission required and try with sudo
-        if not os.path.exists(yolo_weights):
-            print(yolo_path + "/yolov3-spp.weights file not found, downloading from server")
-            os.system(f"wget -P {yolo_path}/ https://pjreddie.com/media/files/yolov3-spp.weights")
-            # TODO: Catch root permission required and try with sudo
+        wget_file(yolo_cfg, "https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3-spp.cfg")
+        wget_file(yolo_weights, "https://pjreddie.com/media/files/yolov3-spp.weights")
 
         self.net = cv.dnn.readNet(yolo_cfg, yolo_weights)
         layer_names = self.net.getLayerNames()
