@@ -9,7 +9,7 @@ VIDEO_FROM_FRAMES = False
 
 if __name__ == "__main__":
 
-    counter = Counter(POINTS, YOLO_FILES_DIR, classes=CLASSES, show_processed_frame=OUTPUT_VIDEO_PATH)
+    counter = Counter(POINTS, yolo_dir=YOLO_FILES_DIR, classes=CLASSES, show_processed_frame=OUTPUT_VIDEO_PATH)
 
     if VIDEO_FROM_FRAMES:
         paths = [os.path.join(VIDEO_PATH, x) for x in os.listdir(VIDEO_PATH)

@@ -12,25 +12,36 @@ class Counter:  # TODO: Return number of each object type
 
     :param lines: Two points to draw line, like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))
     :type lines: list or tuple
-    :param yolo_dir: Path to yolo files: "coco.names", "yolo3-spp.cfg", "yolo3-spp.weights"
+    :param yolo_dir: Path to yolo files folder
     :type yolo_dir: str
+    :param yolo_paths: Paths to yolo files: "coco.names", "yolo3-spp.cfg", "yolo3-spp.weights"
+    :type yolo_paths: dict
+    :param dist_coef: Distance coefficient
+    :type dist_coef: float
     :param classes: Coco classes to count
     :type classes: list of str or tuple of str
     :param show_processed_frame: Should count func return processed image?
     :type show_processed_frame: bool
     """
 
-    def __init__(self, lines, yolo_dir, dist_coef=1, classes=None, show_processed_frame=False, yolo_paths_dict=None):
+    def __init__(self, lines, yolo_dir=None, yolo_paths=None, classes=None, dist_coef=1,
+                 show_processed_frame=False):
         # TODO: User yolo_files paths
         shape = np.array(lines).shape
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
             "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
+        assert yolo_dir is not None or yolo_paths is not None, "You should enter yolo_dir or yolo_paths"
 
-        if not os.path.exists(yolo_dir):
-            os.mkdir(yolo_dir)
+        if yolo_dir is None:
+            yolo_files = ["coco.names", "yolov3-spp.cfg", "yolov3-spp.weights"]
+            assert all((x in yolo_paths for x in yolo_files)), f"yolo_paths should have {', '.join(yolo_files)} files"
+        else:
+            if not os.path.exists(yolo_dir):
+                os.mkdir(yolo_dir)
+
         # Import coco classes
         try:
-            coco_names = yolo_paths_dict["coco.names"]
+            coco_names = yolo_paths["coco.names"]
         except KeyError:
             coco_names = os.path.join(yolo_dir, "coco.names")
         wget_file(coco_names, "https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names")
@@ -70,11 +81,11 @@ class Counter:  # TODO: Return number of each object type
 
         # Init YOLO
         try:
-            yolo_cfg = yolo_paths_dict["yolov3-spp.cfg"]
+            yolo_cfg = yolo_paths["yolov3-spp.cfg"]
         except KeyError:
             yolo_cfg = os.path.join(yolo_dir, "yolov3-spp.cfg")
         try:
-            yolo_weights = yolo_paths_dict["yolov3-spp.weights"]
+            yolo_weights = yolo_paths["yolov3-spp.weights"]
         except KeyError:
             yolo_weights = os.path.join(yolo_dir, "yolov3-spp.weights")
 
