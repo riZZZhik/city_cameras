@@ -27,6 +27,7 @@ class Counter:  # TODO: Return number of each object type
     def __init__(self, lines, yolo_dir=None, yolo_paths=None, classes=None, dist_coef=1,
                  show_processed_frame=False):
         # TODO: User yolo_files paths
+        # Assertions
         shape = np.array(lines).shape
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
             "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
@@ -48,8 +49,7 @@ class Counter:  # TODO: Return number of each object type
         with open(coco_names) as f:
             self.coco_classes = {i: x for i, x in enumerate(f.read().split('\n'))}
 
-        # Class variables
-        self.centroids = []
+        # Classes variables
         default_classes = ("person", "car", "bus", "bicycle", "motorbike", "truck")
         if classes is None:
             classes = default_classes
@@ -61,6 +61,7 @@ class Counter:  # TODO: Return number of each object type
         print(f'Used "{", ".join(self.classes.values())}" classes')
         self.counted = {x: 0 for x in classes}
 
+        # Other class variables
         self.objects_dist = {
             "person": 1,
             "bicycle": 1.5,
@@ -71,13 +72,14 @@ class Counter:  # TODO: Return number of each object type
         }
         self.dist_coef = dist_coef
 
-        self.show_processed_frame = show_processed_frame
-
+        self.centroids = []
         self.lines = lines
         self.mins, self.maxs = [], []
         for line in lines:
             self.mins.append((min(line[0][0], line[1][0]), min(line[0][1], line[1][1])))
             self.maxs.append((max(line[0][0], line[1][0]), max(line[0][1], line[1][1])))
+
+        self.show_processed_frame = show_processed_frame
 
         # Init YOLO
         try:
@@ -165,7 +167,7 @@ class Counter:  # TODO: Return number of each object type
                 processed_frame = cv.putText(processed_frame, obj_class, start, cv.FONT_HERSHEY_SIMPLEX,
                                              1, color, 2, cv.LINE_AA)
 
-            if self.check_sector(x, y, sector_size):
+            if self.check_sector(cx, cy, sector_size):
                 if len(self.centroids) == 0:
                     self.centroids.append((cx, cy))
                     self.counted[obj_class] += 1
