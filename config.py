@@ -5,4 +5,4 @@ OUTPUT_JSON_PATH = "output.json"
 POINTS = (((630, 520), (770, 525)), ((850, 610), (1890, 480)))
 CLASSES = ("person", "car", "bus", "bicycle", "motorbike", "truck")
 
-YOLO_FILES_PATH = "yolo_files"
+YOLO_FILES_DIR = "yolo_files"

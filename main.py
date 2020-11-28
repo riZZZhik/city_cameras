@@ -2,14 +2,14 @@ import os
 import cv2 as cv
 
 from counter import Counter
-from config import VIDEO_PATH, OUTPUT_VIDEO_PATH, OUTPUT_JSON_PATH, POINTS, CLASSES, YOLO_FILES_PATH
+from config import VIDEO_PATH, OUTPUT_VIDEO_PATH, OUTPUT_JSON_PATH, POINTS, CLASSES, YOLO_FILES_DIR
 assert OUTPUT_VIDEO_PATH.endswith("mp4"), "Output video supports only MP4"
 
 VIDEO_FROM_FRAMES = False
 
 if __name__ == "__main__":
 
-    counter = Counter(POINTS, YOLO_FILES_PATH, classes=CLASSES, show_processed_frame=OUTPUT_VIDEO_PATH)
+    counter = Counter(POINTS, YOLO_FILES_DIR, classes=CLASSES, show_processed_frame=OUTPUT_VIDEO_PATH)
 
     if VIDEO_FROM_FRAMES:
         paths = [os.path.join(VIDEO_PATH, x) for x in os.listdir(VIDEO_PATH)

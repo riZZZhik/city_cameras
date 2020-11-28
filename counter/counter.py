@@ -12,24 +12,27 @@ class Counter:  # TODO: Return number of each object type
 
     :param lines: Two points to draw line, like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))
     :type lines: list or tuple
-    :param yolo_path: Path to yolo files: "coco.names", "yolo3-spp.cfg", "yolo3-spp.weights"
-    :type yolo_path: str
+    :param yolo_dir: Path to yolo files: "coco.names", "yolo3-spp.cfg", "yolo3-spp.weights"
+    :type yolo_dir: str
     :param classes: Coco classes to count
     :type classes: list of str or tuple of str
     :param show_processed_frame: Should count func return processed image?
     :type show_processed_frame: bool
     """
 
-    def __init__(self, lines, yolo_path, dist_coef=1, classes=None, show_processed_frame=False):
+    def __init__(self, lines, yolo_dir, dist_coef=1, classes=None, show_processed_frame=False, yolo_paths_dict=None):
         # TODO: User yolo_files paths
         shape = np.array(lines).shape
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
             "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
 
-        if not os.path.exists(yolo_path):
-            os.mkdir(yolo_path)
+        if not os.path.exists(yolo_dir):
+            os.mkdir(yolo_dir)
         # Import coco classes
-        coco_names = os.path.join(yolo_path, "coco.names")
+        try:
+            coco_names = yolo_paths_dict["coco.names"]
+        except KeyError:
+            coco_names = os.path.join(yolo_dir, "coco.names")
         wget_file(coco_names, "https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names")
         with open(coco_names) as f:
             self.coco_classes = {i: x for i, x in enumerate(f.read().split('\n'))}
@@ -66,8 +69,14 @@ class Counter:  # TODO: Return number of each object type
             self.maxs.append((max(line[0][0], line[1][0]), max(line[0][1], line[1][1])))
 
         # Init YOLO
-        yolo_cfg, yolo_weights = os.path.join(yolo_path, "yolov3-spp.cfg"), \
-                                 os.path.join(yolo_path, "yolov3-spp.weights")
+        try:
+            yolo_cfg = yolo_paths_dict["yolov3-spp.cfg"]
+        except KeyError:
+            yolo_cfg = os.path.join(yolo_dir, "yolov3-spp.cfg")
+        try:
+            yolo_weights = yolo_paths_dict["yolov3-spp.weights"]
+        except KeyError:
+            yolo_weights = os.path.join(yolo_dir, "yolov3-spp.weights")
 
         wget_file(yolo_cfg, "https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3-spp.cfg")
         wget_file(yolo_weights, "https://pjreddie.com/media/files/yolov3-spp.weights")
@@ -137,7 +146,7 @@ class Counter:  # TODO: Return number of each object type
             cx = x + w // 2
             cy = y + h // 2
             end = (x + w, y + h)
-            color = (255, 255, 255)
+            color = (0, 255, 0)
             start = (x - 10, y - 10)
 
             if self.show_processed_frame:
@@ -163,9 +172,9 @@ class Counter:  # TODO: Return number of each object type
             text_count = [f"{x}: {i}" for x, i in self.counted.items()]
             text_count = 'Counted: ' + ', '.join(text_count)
             for line in self.lines:
-                processed_frame = cv.line(processed_frame, *line, (0, 255, 0), 2)
+                processed_frame = cv.line(processed_frame, *line, color, 2)
             processed_frame = cv.putText(processed_frame, text_count, (10, height - 10), cv.FONT_HERSHEY_SIMPLEX,
-                                         1, (255, 255, 255), 2, cv.LINE_AA)
+                                         1, color, 2, cv.LINE_AA)
             return self.counted, processed_frame
         else:
             return self.counted, frame
