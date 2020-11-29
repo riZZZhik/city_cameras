@@ -2,7 +2,7 @@ import os
 import cv2 as cv
 
 from counter import Counter
-from config import VIDEO_PATH, OUTPUT_VIDEO_PATH, OUTPUT_JSON_PATH, POINTS, CLASSES, YOLO_FILES_DIR
+from config import *
 assert OUTPUT_VIDEO_PATH.endswith("mp4"), "Output video supports only MP4"
 
 VIDEO_FROM_FRAMES = False
@@ -46,4 +46,4 @@ if __name__ == "__main__":
         output.release()
 
     if OUTPUT_JSON_PATH:
-        counter.save_to_json(OUTPUT_JSON_PATH, "test_vid")
+        counter.save_to_json(OUTPUT_JSON_PATH, CAMERA_ID)
