@@ -4,7 +4,7 @@ import os
 import cv2 as cv
 import numpy as np
 
-from .utils import wget_file
+from .utils import init_yolo
 
 
 class Counter:  # TODO: Return number of each object type
@@ -30,24 +30,10 @@ class Counter:  # TODO: Return number of each object type
         # Assertions
         shape = np.array(lines).shape
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
-            "Points var should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4))"
-        assert yolo_dir is not None or yolo_paths is not None, "You should enter yolo_dir or yolo_paths"
+            "Lines variable should be like (((x1, y1), (x2, y2)), (x3, y3), (x4, y4)), ...)"
 
-        if yolo_dir is None:
-            yolo_files = ["coco.names", "yolov3-spp.cfg", "yolov3-spp.weights"]
-            assert all((x in yolo_paths for x in yolo_files)), f"yolo_paths should have {', '.join(yolo_files)} files"
-        else:
-            if not os.path.exists(yolo_dir):
-                os.mkdir(yolo_dir)
-
-        # Import coco classes
-        try:
-            coco_names = yolo_paths["coco.names"]
-        except KeyError:
-            coco_names = os.path.join(yolo_dir, "coco.names")
-        wget_file(coco_names, "https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names")
-        with open(coco_names) as f:
-            self.coco_classes = {i: x for i, x in enumerate(f.read().split('\n'))}
+        # Init YOLOv3-SPP
+        self.coco_classes, self.net, self.out_layers = init_yolo(yolo_dir, yolo_paths)
 
         # Classes variables
         default_classes = ("person", "car", "bus", "bicycle", "motorbike", "truck")
@@ -72,32 +58,14 @@ class Counter:  # TODO: Return number of each object type
         }
         self.dist_coef = dist_coef
 
-        self.centroids = []
         self.lines = lines
+        self.centroids = []
         self.mins, self.maxs = [], []
         for line in lines:
             self.mins.append((min(line[0][0], line[1][0]), min(line[0][1], line[1][1])))
             self.maxs.append((max(line[0][0], line[1][0]), max(line[0][1], line[1][1])))
 
         self.show_processed_frame = show_processed_frame
-
-        # Init YOLO
-        try:
-            yolo_cfg = yolo_paths["yolov3-spp.cfg"]
-        except KeyError:
-            yolo_cfg = os.path.join(yolo_dir, "yolov3-spp.cfg")
-        try:
-            yolo_weights = yolo_paths["yolov3-spp.weights"]
-        except KeyError:
-            yolo_weights = os.path.join(yolo_dir, "yolov3-spp.weights")
-
-        wget_file(yolo_cfg, "https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3-spp.cfg")
-        wget_file(yolo_weights, "https://pjreddie.com/media/files/yolov3-spp.weights")
-
-        self.net = cv.dnn.readNet(yolo_cfg, yolo_weights)
-        layer_names = self.net.getLayerNames()
-        out_layers_indexes = self.net.getUnconnectedOutLayers()
-        self.out_layers = [layer_names[index[0] - 1] for index in out_layers_indexes]
 
     def check_sector(self, x, y, sector_size):
         for line, mins, maxs in zip(self.lines, self.mins, self.maxs):

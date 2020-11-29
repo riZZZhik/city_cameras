@@ -1,9 +1,11 @@
-CAMERA_ID = "test"
-POINTS = (((630, 520), (770, 525)), ((850, 610), (1890, 480)))
-CLASSES = ("person", "car", "bus", "bicycle", "motorbike", "truck")
+from typing import Tuple, List
 
-YOLO_FILES_DIR = "yolo_files"
+CAMERA_ID: str or int = "test"
+POINTS: list or tuple = (((630, 520), (770, 525)), ((850, 610), (1890, 480)))
+CLASSES: List[str] or Tuple[str] = ("person", "car", "bus", "bicycle", "motorbike", "truck")
 
-VIDEO_PATH = "test_vid.avi"
-OUTPUT_VIDEO_PATH = "output.mp4"  # Output video supports only MP4
-OUTPUT_JSON_PATH = "output.json"
+YOLO_FILES_DIR: str = "yolo_files"
+
+VIDEO_PATH: str = "test_vid.avi"
+OUTPUT_VIDEO_PATH: str = "output.mp4"  # Output video supports only MP4
+OUTPUT_JSON_PATH: str = "output.json"
