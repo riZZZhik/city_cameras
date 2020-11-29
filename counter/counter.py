@@ -192,7 +192,7 @@ class Counter:  # TODO: Return number of each object type
         else:
             return self.counted, frame
 
-    def save_to_json(self, filename, camera_id, sort=False):
+    def save_to_json(self, filename, camera_id):
         data = {}
         if os.path.exists(filename):
             with open(filename) as f:
@@ -201,9 +201,6 @@ class Counter:  # TODO: Return number of each object type
                     data[key] = value
 
         data[camera_id] = self.counted
-
-        if sort:
-            data = {k: data[k] for k in sorted(data)}
 
         with open(filename, 'w') as f:
             json.dump(data, f)
