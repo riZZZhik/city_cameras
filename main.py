@@ -3,13 +3,14 @@ import cv2 as cv
 
 from counter import Counter
 from config import *
-assert OUTPUT_VIDEO_PATH.endswith("mp4"), "Output video supports only MP4"
+assert OUTPUT_VIDEO_PATH.lower().endswith("avi"), "Output video supports only avi"
 
 VIDEO_FROM_FRAMES = False
 
 if __name__ == "__main__":
 
-    counter = Counter(POINTS, yolo_dir=YOLO_FILES_DIR, classes=CLASSES, show_processed_frame=OUTPUT_VIDEO_PATH)
+    counter = Counter(POINTS, yolo_dir=YOLO_FILES_DIR, log_file=LOG_FILE,
+                      classes=CLASSES, show_processed_frame=bool(OUTPUT_VIDEO_PATH))
 
     if VIDEO_FROM_FRAMES:
         paths = [os.path.join(VIDEO_PATH, x) for x in os.listdir(VIDEO_PATH)
@@ -27,7 +28,7 @@ if __name__ == "__main__":
         cap = cv.VideoCapture(VIDEO_PATH)
         size = int(cap.get(3)), int(cap.get(4))
         if OUTPUT_VIDEO_PATH:
-            output = cv.VideoWriter(OUTPUT_VIDEO_PATH, cv.VideoWriter_fourcc(*'MP4V'), 20, size)
+            output = cv.VideoWriter(OUTPUT_VIDEO_PATH, cv.VideoWriter_fourcc(*'MJPG'), 20, size)
 
         i = 0
         while cap.isOpened():
@@ -37,8 +38,6 @@ if __name__ == "__main__":
                 break
 
             counted, processed_frame = counter.count(frame)
-            text_count = [f"{x}: {i}" for x, i in counted.items()]
-            print(f"Counted: {', '.join(text_count)}, on frame {i}")
             if OUTPUT_VIDEO_PATH:
                 output.write(processed_frame)
 

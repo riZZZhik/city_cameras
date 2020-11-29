@@ -1,10 +1,11 @@
 import json
+import logging
 import os
 
 import cv2 as cv
 import numpy as np
 
-from .utils import init_yolo
+from .utils import init_yolo, init_logger
 
 
 class Counter:  # TODO: Return number of each object type
@@ -24,9 +25,13 @@ class Counter:  # TODO: Return number of each object type
     :type show_processed_frame: bool
     """
 
-    def __init__(self, lines, yolo_dir=None, yolo_paths=None, classes=None, dist_coef=1,
-                 show_processed_frame=False):
+    def __init__(self, lines, yolo_dir=None, yolo_paths=None, log_file=None, log_level=logging.INFO,
+                 classes=None, dist_coef=1, show_processed_frame=False):
         # TODO: User yolo_files paths
+        # Init logger
+        self.logger = init_logger(log_file, log_level, __name__)
+        self.logger.info("Initializing Counter")
+
         # Assertions
         shape = np.array(lines).shape
         assert shape[-2:] == (2, 2) and len(shape) == 3, \
@@ -44,8 +49,9 @@ class Counter:  # TODO: Return number of each object type
             assert all(c in default_classes for c in classes), f"Only {', '.join(default_classes)} classes supported"
 
         self.classes = {i: x for i, x in self.coco_classes.items() if x in classes}
-        print(f'Used "{", ".join(self.classes.values())}" classes')
+        self.logger.info(f'Used "{", ".join(self.classes.values())}" classes')
         self.counted = {x: 0 for x in classes}
+        self.str_counted = lambda: [f"{x}: {i}" for x, i in self.counted.items()]
 
         # Other class variables
         self.objects_dist = {
@@ -65,7 +71,10 @@ class Counter:  # TODO: Return number of each object type
             self.mins.append((min(line[0][0], line[1][0]), min(line[0][1], line[1][1])))
             self.maxs.append((max(line[0][0], line[1][0]), max(line[0][1], line[1][1])))
 
+        self.frame_id = 0
         self.show_processed_frame = show_processed_frame
+
+        self.logger.debug("Initialized Counter")
 
     def check_sector(self, x, y, sector_size):
         for line, mins, maxs in zip(self.lines, self.mins, self.maxs):
@@ -87,6 +96,7 @@ class Counter:  # TODO: Return number of each object type
         :return processed_frame: Processed frame with outlined objects, if init processed_frame is True
         :rtype processed_frame: np.ndarray
         """
+        self.frame_id += 1
         height, width = frame.shape[:2]
         sector_size = width * 5.2
         person_dist = width / 96
@@ -149,6 +159,8 @@ class Counter:  # TODO: Return number of each object type
                         self.centroids.append((cx, cy))
                         self.counted[obj_class] += 1
 
+        self.logger.info(f'Counted: "{", ".join(self.str_counted())}" on frame {self.frame_id}')
+
         if self.show_processed_frame:
             text_count = [f"{x}: {i}" for x, i in self.counted.items()]
             text_count = 'Counted: ' + ', '.join(text_count)
@@ -172,3 +184,5 @@ class Counter:  # TODO: Return number of each object type
 
         with open(filename, 'w') as f:
             json.dump(data, f)
+
+        self.logger.info(f'Saved "{", ".join(self.str_counted())}" to "{filename}" with id "{camera_id}"')

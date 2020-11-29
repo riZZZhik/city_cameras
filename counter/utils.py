@@ -1,7 +1,10 @@
+import logging
 import os
+
 import cv2 as cv
 
 
+# YOLO
 def wget_file(filepath: str, file_url: str):
     if not os.path.exists(filepath):
         print(f'{filepath} file not found, downloading from server')
@@ -64,3 +67,22 @@ def init_yolo(yolo_dir, yolo_paths):
     out_layers = [layer_names[index[0] - 1] for index in out_layers_indexes]
 
     return coco_classes, net, out_layers
+
+
+# Logging
+def init_logger(log_file, log_level, log_name):
+    date_format = {
+        "format": '%(asctime)s - %(levelname)s: %(message)s',
+        "datefmt": '%d-%b-%y %H:%M:%S'
+    }
+    logging.basicConfig(level=log_level, **date_format)
+    logger = logging.getLogger(log_name)
+
+    if log_file:
+        file_handler = logging.FileHandler(log_file)
+        formatter = logging.Formatter(*date_format.values())
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(log_level)
+        logger.addHandler(file_handler)
+
+    return logger
