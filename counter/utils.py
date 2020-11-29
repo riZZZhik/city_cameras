@@ -29,17 +29,17 @@ def get_yolo_files(yolo_dir, yolo_paths):
     # Get files paths
     try:
         coco_names = yolo_paths["coco.names"]
-    except KeyError:
+    except (KeyError, TypeError):
         coco_names = os.path.join(yolo_dir, "coco.names")
 
     try:
         yolo_cfg = yolo_paths["yolov3-spp.cfg"]
-    except KeyError:
+    except (KeyError, TypeError):
         yolo_cfg = os.path.join(yolo_dir, "yolov3-spp.cfg")
 
     try:
         yolo_weights = yolo_paths["yolov3-spp.weights"]
-    except KeyError:
+    except (KeyError, TypeError):
         yolo_weights = os.path.join(yolo_dir, "yolov3-spp.weights")
 
     # Download files if it is needed
