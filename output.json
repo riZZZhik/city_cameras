@@ -1,1 +1,1 @@
-{"test": {"person": 0, "car": 0, "bus": 0, "bicycle": 0, "motorbike": 0, "truck": 0}}
+{"input": {"person": 3, "car": 0, "bus": 0, "bicycle": 1, "motorbike": 0}}
